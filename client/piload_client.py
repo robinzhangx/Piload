@@ -24,7 +24,9 @@ SERVER = config.get(CFG_SECTION, "server")
 USERNAME = config.get(CFG_SECTION, "username")
 PASSWORD = config.get(CFG_SECTION, "password")
 AMULE_PASSWORD = config.get(CFG_SECTION, "amule_password")
+XUNLEI_COMMAND = config.get(CFG_SECTION, "xunlei_command")
 
+useXunLei = XUNLEI_COMMAND != None and len(XUNLEI_COMMAND) != 0
 logger = logging.getLogger('piload')
 hdlr = logging.FileHandler('/home/pi/piload_client.log')
 formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
@@ -161,13 +163,21 @@ def addDownload(link):
     ret = subprocess.check_output(["amulecmd", "-P", AMULE_PASSWORD, "-c", "add " + link])
     logger.info(ret)
 
+def xunleiLixianDownload(link):
+    ret = subprocess.check_output([XUNLEI_COMMAND, "download", link])
+    logger.info(ret)
+
 def run():
     tasks = getNewTask();
     for t in tasks:
         uri = t.get("uri")
         logger.info(uri)
-        addDownload(uri)
+        if not useXunLei:
+            addDownload(uri)
+        else:
+            xunleiLixianDownload(uri)
         setTaskRunning(t)
+
     statuss = getStatus()
     if len(statuss) >= 1:
         uploadStatus(statuss[0].get("id"), getMuleStatus())
