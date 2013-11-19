@@ -9,12 +9,14 @@ import logging
 import sys
 import re
 import ConfigParser
+import socket
 
 TOKEN = None
 INTERVAL = 10
 CFG_SECTION = "piload"
 STATS_LINE_REGEX = " >.+\\n"
 STATS_LINE_PATTERN = re.compile(STATS_LINE_REGEX)
+TIMEOUT = 10
 
 config = ConfigParser.RawConfigParser()
 config.read('/home/pi/piload_client.cfg')
@@ -41,7 +43,7 @@ def getToken():
             'username': USERNAME,
             'password': PASSWORD
     })
-    data = json.load(urllib2.urlopen(url, params))
+    data = json.load(urllib2.urlopen(url, params, TIMEOUT))
     logger.info(data)
     return data.get('token')
 
@@ -51,9 +53,12 @@ def getNewTask():
     req = urllib2.Request(url)
     req.add_header("Authorization", "Token " + TOKEN)
     try:
-        tasks = json.load(urllib2.urlopen(req))
+        tasks = json.load(urllib2.urlopen(req, None, TIMEOUT))
         return tasks
     except urllib2.URLError, e:
+        logger.error(e)
+        return []
+    except socket.timeout, e:
         logger.error(e)
         return []
 
@@ -65,7 +70,7 @@ def setTaskRunning(task):
             'status': 'R'
         })
         logger.info(data)
-        req = urllib2.Request(url, data)
+        req = urllib2.Request(url, data, TIMEOUT)
         req.add_header("Authorization", "Token " + TOKEN)
         req.add_header('Content-Type', 'application/json')
         req.get_method = lambda: 'PATCH'
@@ -74,6 +79,8 @@ def setTaskRunning(task):
             logger.info(resp)
         except urllib2.HTTPError, e:
             logger.error(e)
+        except socket.timeout, e:
+            logger.error(e)
 
 def getStatus():
     logger.info("getStatus")
@@ -81,9 +88,12 @@ def getStatus():
     req = urllib2.Request(url)
     req.add_header("Authorization", "Token " + TOKEN)
     try:
-        status = json.load(urllib2.urlopen(req))
+        status = json.load(urllib2.urlopen(req, None, TIMEOUT))
         return status
     except urllib2.URLError, e:
+        logger.error(e)
+        return []
+    except socket.timeout, e:
         logger.error(e)
         return []
 
@@ -98,9 +108,11 @@ def uploadStatus(id, status):
     req.add_header('Content-Type', 'application/json')
     req.get_method = lambda: 'PATCH'
     try:
-        resp = urllib2.urlopen(req)
+        resp = urllib2.urlopen(req, None, TIMEOUT)
         logger.info(resp)
     except urllib2.HTTPError, e:
+        logger.error(e)
+    except socket.timeout, e:
         logger.error(e)
 
 def getDownload():
@@ -109,9 +121,12 @@ def getDownload():
     req = urllib2.Request(url)
     req.add_header("Authorization", "Token " + TOKEN)
     try:
-        download = json.load(urllib2.urlopen(req))
+        download = json.load(urllib2.urlopen(req, None, TIMEOUT))
         return download
     except urllib2.URLError, e:
+        logger.error(e)
+        return []
+    except socket.timeout, e:
         logger.error(e)
         return []
 
@@ -126,9 +141,11 @@ def uploadDownload(id, downloads):
     req.add_header('Content-Type', 'application/json')
     req.get_method = lambda: 'PATCH'
     try:
-        resp = urllib2.urlopen(req)
+        resp = urllib2.urlopen(req, None, TIMEOUT)
         logger.info(resp)
     except urllib2.HTTPError, e:
+        logger.error(e)
+    except socket.timeout, e:
         logger.error(e)
 
 def getStatsLine(input):
