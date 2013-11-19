@@ -44,9 +44,12 @@
             {% endif %}
             <form role="form" action="{% url 'submit_task_view' %}" method="post">
                 {% csrf_token %}
-                <input name="link" type="text" class="form-control" placeholder="ed2k://..."/>
-                <span class="help-block"></span>
-                <input class="btn btn-primary" type="submit" value="Add" />
+                <div class="input-group">
+                    <span class="input-group-btn">
+                        <button class="btn btn-success" type="submit">Add</button>
+                    </span>
+                    <input name="link" type="text" class="form-control" placeholder="ed2k://..."/>
+                </div>
             </form>
         </div>
         <div class="pi-block">
