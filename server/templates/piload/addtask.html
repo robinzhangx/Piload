@@ -55,13 +55,16 @@
         <div class="pi-block">
             <p class="pi-block-title">Pending Tasks</p>
             <table class="table table-striped">
-                {% for w in wait_list %}
-                    <tr>
-                        <td>{{ w.name }}</td>
-                        <td>{{ w.size }}</td>
-                        <td>{{ w.add_date }}</td>
-                    </tr>
-                {% endfor %}
+                {% if wait_list|length > 0 %}
+                    <th>Name</th><th>Size</th><th>Wait Time</th>
+                    {% for w in wait_list %}
+                        <tr>
+                            <td>{{ w.name }}</td>
+                            <td>{{ w.size }}</td>
+                            <td>{{ w.add_date }}</td>
+                        </tr>
+                    {% endfor %}
+                {% endif %}
             </table>
         </div>
         <div class="pi-block">
