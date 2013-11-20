@@ -10,6 +10,9 @@ import sys
 import re
 import ConfigParser
 import socket
+import os
+from os.path import expanduser
+from piload_function import parseWgetLog, cmd_exists, mkdir_p
 
 TOKEN = None
 INTERVAL = 10
@@ -19,7 +22,7 @@ STATS_LINE_PATTERN = re.compile(STATS_LINE_REGEX)
 TIMEOUT = 10
 
 config = ConfigParser.RawConfigParser()
-config.read('/home/pi/piload_client.cfg')
+config.read(expanduser('~/piload_client.cfg'))
 
 SERVER = config.get(CFG_SECTION, "server")
 #SERVER = "http://127.0.0.1:8000/"
@@ -27,10 +30,12 @@ USERNAME = config.get(CFG_SECTION, "username")
 PASSWORD = config.get(CFG_SECTION, "password")
 AMULE_PASSWORD = config.get(CFG_SECTION, "amule_password")
 XUNLEI_COMMAND = config.get(CFG_SECTION, "xunlei_command")
+WGET_LOG = config.get(CFG_SECTION, "wget_log")
 
+mkdir_p(os.path.dirname(WGET_LOG))
 useXunLei = XUNLEI_COMMAND != None and len(XUNLEI_COMMAND) != 0
 logger = logging.getLogger('piload')
-hdlr = logging.FileHandler('/home/pi/piload_client.log')
+hdlr = logging.FileHandler(expanduser('~/piload_client.log'))
 formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
 hdlr.setFormatter(formatter)
 logger.addHandler(hdlr) 
@@ -70,12 +75,13 @@ def setTaskRunning(task):
             'status': 'R'
         })
         logger.info(data)
-        req = urllib2.Request(url, data, TIMEOUT)
+
+        req = urllib2.Request(url, data)
         req.add_header("Authorization", "Token " + TOKEN)
         req.add_header('Content-Type', 'application/json')
         req.get_method = lambda: 'PATCH'
         try:
-            resp = urllib2.urlopen(req)
+            resp = urllib2.urlopen(req, timeout=TIMEOUT)
             logger.info(resp)
         except urllib2.HTTPError, e:
             logger.error(e)
@@ -157,6 +163,8 @@ def getStatsLine(input):
 def getMuleStatus():
     logger.info("getMuleStatus")
     ret = ""
+    if not cmd_exists('amulecmd'):
+        return ret
     try:
         status = subprocess.check_output(["amulecmd", "-P", AMULE_PASSWORD, "-c", "status"])
         ret = getStatsLine(status)
@@ -168,6 +176,8 @@ def getMuleStatus():
 def getMuleDownload():
     logger.info("getMuleDownload")
     ret = ""
+    if not cmd_exists('amulecmd'):
+        return ret
     try:
         downloads = subprocess.check_output(["amulecmd", "-P", AMULE_PASSWORD, "-c", "show dl"])
         ret = getStatsLine(downloads)
@@ -181,7 +191,7 @@ def addDownload(link):
     logger.info(ret)
 
 def xunleiLixianDownload(link):
-    ret = subprocess.check_output([XUNLEI_COMMAND, "download", link])
+    ret = subprocess.Popen([XUNLEI_COMMAND, "download", link])
     logger.info(ret)
 
 def run():
@@ -194,6 +204,9 @@ def run():
         else:
             xunleiLixianDownload(uri)
         setTaskRunning(t)
+
+    progress = parseWgetLog(WGET_LOG)
+    logger.info(progress)
 
     statuss = getStatus()
     if len(statuss) >= 1:
