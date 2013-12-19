@@ -63,6 +63,9 @@ def getNewTask():
     except urllib2.URLError, e:
         logger.error(e)
         return []
+    except urllib2.HTTPError, e:
+        logger.error(e)
+        return []
     except socket.timeout, e:
         logger.error(e)
         return []
@@ -83,6 +86,8 @@ def setTaskRunning(task):
         try:
             resp = urllib2.urlopen(req, timeout=TIMEOUT)
             logger.info(resp)
+        except urllib2.URLError, e:
+            logger.error(e)
         except urllib2.HTTPError, e:
             logger.error(e)
         except socket.timeout, e:
@@ -97,6 +102,9 @@ def getStatus():
         status = json.load(urllib2.urlopen(req, None, TIMEOUT))
         return status
     except urllib2.URLError, e:
+        logger.error(e)
+        return []
+    except urllib2.HTTPError, e:
         logger.error(e)
         return []
     except socket.timeout, e:
@@ -116,6 +124,8 @@ def uploadStatus(id, status):
     try:
         resp = urllib2.urlopen(req, None, TIMEOUT)
         logger.info(resp)
+    except urllib2.URLError, e:
+        logger.error(e)
     except urllib2.HTTPError, e:
         logger.error(e)
     except socket.timeout, e:
@@ -130,6 +140,9 @@ def getDownload():
         download = json.load(urllib2.urlopen(req, None, TIMEOUT))
         return download
     except urllib2.URLError, e:
+        logger.error(e)
+        return []
+    except urllib2.HTTPError, e:
         logger.error(e)
         return []
     except socket.timeout, e:
@@ -149,6 +162,8 @@ def uploadDownload(id, downloads):
     try:
         resp = urllib2.urlopen(req, None, TIMEOUT)
         logger.info(resp)
+    except urllib2.URLError, e:
+        logger.error(e)
     except urllib2.HTTPError, e:
         logger.error(e)
     except socket.timeout, e:
@@ -158,6 +173,7 @@ def getStatsLine(input):
     stats = ""
     for m in STATS_LINE_PATTERN.finditer(input):
         stats += m.group(0)
+    stats += " "
     return stats
 
 def getMuleStatus():
@@ -217,10 +233,13 @@ def run():
 
 TOKEN = getToken()
 while True:
-    #try:
+    try:
         logger.info("run")
         run()
         time.sleep(INTERVAL)
-    #except Exception, e:
-    #    logger.error("Unexpected error:" + e)
-    #    raise
+    except Exception, e:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        logger.error(exc_type)
+        logger.error(str(e))
+        raise
+
