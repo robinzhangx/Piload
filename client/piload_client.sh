@@ -17,16 +17,16 @@ DAEMON_NAME=piload
  
 # This next line determines what user the script runs as.
 # Root generally not recommended but necessary if you are using the Raspberry Pi GPIO from Python.
-DAEMON_USER=root
+DAEMON_USER=pi
  
 # The process ID of the script when it runs is stored here:
-PIDFILE=/var/run/$DAEMON_NAME.pid
+PIDFILE=$DIR/$DAEMON_NAME.pid
  
 . /lib/lsb/init-functions
  
 do_start () {
     log_daemon_msg "Starting system $DAEMON_NAME daemon"
-    start-stop-daemon --start --background --pidfile $PIDFILE --make-pidfile --user $DAEMON_USER --startas $DAEMON
+    start-stop-daemon --start --background --pidfile $PIDFILE --make-pidfile --user $DAEMON_USER --chuid $DAEMON_USER --startas $DAEMON
     log_end_msg $?
 }
 do_stop () {
@@ -47,7 +47,7 @@ case "$1" in
         ;;
  
     status)
-        status_of_proc "$DAEMON_NAME" "$DAEMON" && exit 0 || exit $?
+        status_of_proc -p "$PIDFILE" "$DAEMON_NAME" "$DAEMON" && exit 0 || exit $?
         ;;
     *)
         echo "Usage: /etc/init.d/$DEAMON_NAME {start|stop|restart|status}"
