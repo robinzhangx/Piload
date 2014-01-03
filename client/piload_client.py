@@ -15,6 +15,9 @@ from os.path import expanduser
 from piload_function import parseWgetLog, cmd_exists, mkdir_p
 
 TOKEN = None
+STATUS_ID = None
+DOWNLOAD_ID = None
+
 INTERVAL = 10
 CFG_SECTION = "piload"
 STATS_LINE_REGEX = " >.+\\n"
@@ -39,7 +42,7 @@ hdlr = logging.FileHandler(expanduser('~/piload_client.log'))
 formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
 hdlr.setFormatter(formatter)
 logger.addHandler(hdlr) 
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.ERROR)
 
 def getToken():
     logger.info("getToken")
@@ -223,15 +226,18 @@ def run():
 
     progress = parseWgetLog(WGET_LOG)
     logger.info(progress)
-
-    statuss = getStatus()
-    if len(statuss) >= 1:
-        uploadStatus(statuss[0].get("id"), getMuleStatus())
-    downloads = getDownload()
-    if len(downloads) >= 1:
-        uploadDownload(downloads[0].get("id"), getMuleDownload())
+    
+    uploadStatus(STATUS_ID, getMuleStatus())
+    uploadDownload(DOWNLOAD_ID, getMuleDownload())
 
 TOKEN = getToken()
+statuss = getStatus()
+if len(statuss) >= 1:
+    STATUS_ID = statuss[0].get("id")
+downloads = getDownload()
+if len(downloads) >= 1:
+    DOWNLOAD_ID = downloads[0].get("id")
+
 while True:
     try:
         logger.info("run")
