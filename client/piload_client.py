@@ -15,8 +15,6 @@ from os.path import expanduser
 from piload_function import parseWgetLog, cmd_exists, mkdir_p
 
 TOKEN = None
-STATUS_ID = None
-DOWNLOAD_ID = None
 
 INTERVAL = 10
 CFG_SECTION = "piload"
@@ -96,74 +94,17 @@ def setTaskRunning(task):
         except socket.timeout, e:
             logger.error(e)
 
-def getStatus():
-    logger.info("getStatus")
-    url = SERVER + "api/status/?format=json"
-    req = urllib2.Request(url)
-    req.add_header("Authorization", "Token " + TOKEN)
-    try:
-        status = json.load(urllib2.urlopen(req, None, TIMEOUT))
-        return status
-    except urllib2.URLError, e:
-        logger.error(e)
-        return []
-    except urllib2.HTTPError, e:
-        logger.error(e)
-        return []
-    except socket.timeout, e:
-        logger.error(e)
-        return []
-
-def uploadStatus(id, status):
+def uploadStatus(status, downloads):
     logger.info("uploadStatus")
-    url = SERVER + "api/status/%d/" % id
-    data = json.dumps({
-        'status': status
+    url = SERVER + "update"
+    params = urllib.urlencode({
+            'username': USERNAME,
+            'password': PASSWORD,
+            'status': status,
+            'downloads': downloads
     })
-    req = urllib2.Request(url, data)
-    req.add_header("Authorization", "Token " + TOKEN)
-    req.add_header('Content-Type', 'application/json')
-    req.get_method = lambda: 'PATCH'
     try:
-        resp = urllib2.urlopen(req, None, TIMEOUT)
-        logger.info(resp)
-    except urllib2.URLError, e:
-        logger.error(e)
-    except urllib2.HTTPError, e:
-        logger.error(e)
-    except socket.timeout, e:
-        logger.error(e)
-
-def getDownload():
-    logger.info("getDownload")
-    url = SERVER + "api/download/?format=json"
-    req = urllib2.Request(url)
-    req.add_header("Authorization", "Token " + TOKEN)
-    try:
-        download = json.load(urllib2.urlopen(req, None, TIMEOUT))
-        return download
-    except urllib2.URLError, e:
-        logger.error(e)
-        return []
-    except urllib2.HTTPError, e:
-        logger.error(e)
-        return []
-    except socket.timeout, e:
-        logger.error(e)
-        return []
-
-def uploadDownload(id, downloads):
-    logger.info("uploadDownload")
-    url = SERVER + "api/download/%d/" % id
-    data = json.dumps({
-        'downloads': downloads
-    })
-    req = urllib2.Request(url, data)
-    req.add_header("Authorization", "Token " + TOKEN)
-    req.add_header('Content-Type', 'application/json')
-    req.get_method = lambda: 'PATCH'
-    try:
-        resp = urllib2.urlopen(req, None, TIMEOUT)
+        resp = urllib2.urlopen(url, params, TIMEOUT)
         logger.info(resp)
     except urllib2.URLError, e:
         logger.error(e)
@@ -227,17 +168,9 @@ def run():
     progress = parseWgetLog(WGET_LOG)
     logger.info(progress)
     
-    uploadStatus(STATUS_ID, getMuleStatus())
-    uploadDownload(DOWNLOAD_ID, getMuleDownload())
+    uploadStatus(getMuleStatus(), getMuleDownload())
 
 TOKEN = getToken()
-statuss = getStatus()
-if len(statuss) >= 1:
-    STATUS_ID = statuss[0].get("id")
-downloads = getDownload()
-if len(downloads) >= 1:
-    DOWNLOAD_ID = downloads[0].get("id")
-
 while True:
     try:
         logger.info("run")

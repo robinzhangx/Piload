@@ -3,13 +3,15 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader, RequestContext
 from django.shortcuts import render, redirect
 from django.core.urlresolvers import reverse
-from django.contrib.auth import logout
+from django.contrib.auth import authenticate, logout
 from django.utils import timezone
 from rest_framework import viewsets
+from datetime import datetime
 import logging
 import re
 import django_filters
 import urllib
+import redis
 
 from piload.serializers import TaskSerializer, StatusSerializer, DownloadSerializer
 from piload.models import Task, Status, Download
@@ -31,6 +33,8 @@ ED2K_PATTERN = re.compile(ED2K_URI)
 #REGEX_DOWNLOAD = " > [A-Fa-f0-9]{32} (?P<name>\S+)\\n\S+\\n"
 REGEX_DOWNLOAD = " > [A-Fa-f0-9]{32} (?P<name>.+)\\n >(?P<stats>.+)\\n"
 DOWNLOAD_PATTERN = re.compile(REGEX_DOWNLOAD)
+
+RedisDB = redis.StrictRedis(host="localhost", port="6379", db=0)
 
 class TaskFilter(django_filters.FilterSet):
     class Meta:
@@ -67,7 +71,6 @@ def add_task_view(request):
         return redirect('/api-auth/login/?next=%s' % request.path)
     u = request.user
     try:
-        
         update_date = "unknown"
         status_list = []
         wait_list = []
@@ -85,20 +88,18 @@ def add_task_view(request):
                 "add_date":elapsed_time(elapse.total_seconds()),
                 })
 
-        downloading = Download.objects.filter(user=u)
-        if len(downloading) >= 1:
-            for m in DOWNLOAD_PATTERN.finditer(downloading[0].downloads):
+        downloads = RedisDB.get("download-%d" % u.id)
+        if downloads:
+            for m in DOWNLOAD_PATTERN.finditer(downloads):
                 download_list.append({
                     "name":m.group("name"),
                     "stats":m.group("stats"),
                 })
 
-        status = Status.objects.filter(user=u)
-        if len(status) >= 1:
-            update_date = status[0].update_date
-            status_list = status[0].status.splitlines()
-
-
+        status = RedisDB.get("status-%d" % u.id)
+        if status:
+            status_list = status.splitlines()
+        update_date = RedisDB.get("timestamp-%d" % u.id)
 
         c = RequestContext(request, {
             "user_name": u.username,
@@ -106,13 +107,11 @@ def add_task_view(request):
             "status_list": status_list,
             "wait_list": wait_list,
             "download_list":download_list,
-            "error_message":"",
         })
     except Status.DoesNotExist:
         c = RequestContext(request, {
             "user_name": u.username,
             "update_date": "unknown",
-            "error_message":"",
         })
     return render(request, "piload/addtask.html", c)
 
@@ -127,6 +126,22 @@ def submit_task_view(request):
         t.uri = uri
         t.save();
         return HttpResponseRedirect(reverse("add_task_view"))
+
+@csrf_exempt
+def update_status_view(request):
+    username = request.POST['username']
+    password = request.POST['password']
+    user = authenticate(username=username, password=password)
+    if user is not None:
+        status = request.POST['status']
+        downloads = request.POST['downloads']
+        RedisDB.set("status-%d" % user.id, status)
+        RedisDB.set("download-%d" % user.id, downloads)
+        d = datetime.now()
+        RedisDB.set("timestamp-%d" % user.id, str(d))
+        return HttpResponse("ok")
+    else:
+        return HttpResponse("error")
 
 def logout_view(request):
     logout(request)
